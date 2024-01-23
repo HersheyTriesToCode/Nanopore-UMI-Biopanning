@@ -1,0 +1,4 @@
+parasail==1.2.4
+NGSpeciesID==0.3.0
+medaka==1.11.3
+pyabpoa==1.4.3

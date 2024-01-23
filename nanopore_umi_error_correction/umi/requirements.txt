@@ -1,0 +1,6 @@
+# created using pipreqs 12 Jan 2024
+Bio==1.6.2
+#biopython==1.82
+biopython==1.81 # before pairwise2 removed
+matplotlib==3.5.2
+numpy==1.26.3
