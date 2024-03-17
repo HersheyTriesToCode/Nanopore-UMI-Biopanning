@@ -5,15 +5,15 @@
 
 # this is how relative paths work... on both mac and windows
 # our directory is   blah/users/hershey/data
-# our scripts are in blah/users/hershey/src/PythonJournals/UMI
-# so the relative path from our directory to scripts is therefore ../src/PythonJournals/UMI
+# our scripts are in blah/users/hershey/src/BioTools/scripts
+# so the relative path from our directory to scripts is therefore ../src/BioTools/scripts
 
-SCRIPT_DIR="../src/PythonJournals/UMI"
+SCRIPT_DIR="../src/BioTools/scripts"
 
 # modified script (includes Read Consensus Flag in Dict)
 
-INPUT_FASTQ="Nanopore_data_UMI/input/final_concats/bc1_final.fastq"
-OUT_DIR="Nanopore_data_UMI/output/bc1_output_medium_new"
+INPUT_FASTQ="Nanopore_data_UMI/input/input.fastq"
+OUT_DIR="Nanopore_data_UMI/output"
 BIN_OUT_DIR=$OUT_DIR/binning
 
 # the higher the stricter the matching / rejection
