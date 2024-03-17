@@ -1,4 +1,4 @@
-# BioTools
+# Nanopore-UMI-Biopanning
 
 The umi_read_extract_pipeline.sh within the pipeline folder can be run in stages 1,2,3,4,5 as `./umi_read_extract_pipeline.sh --stage 1,2,3,4,5`. There are various spice levels at which the pipeline can be run: where acs is alignment threshold for cs1 and cs2 sequences and aum is alignment threshold for the read consensus (phage backbone)
 
