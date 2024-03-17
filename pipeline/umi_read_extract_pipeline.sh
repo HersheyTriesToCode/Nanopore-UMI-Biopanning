@@ -5,10 +5,10 @@
 
 # this is how relative paths work... on both mac and windows
 # our directory is   blah/users/hershey/data
-# our scripts are in blah/users/hershey/src/BioTools/scripts
-# so the relative path from our directory to scripts is therefore ../src/BioTools/scripts
+# our scripts are in blah/users/hershey/src/Nanopore-UMI-Biopanning/scripts
+# so the relative path from our directory to scripts is therefore ../src/Nanopore-UMI-Biopanning/scripts
 
-SCRIPT_DIR="../src/BioTools/scripts"
+SCRIPT_DIR="../src/Nanopore-UMI-Biopanning/scripts"
 
 # modified script (includes Read Consensus Flag in Dict)
 
