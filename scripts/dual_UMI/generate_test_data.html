@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Data Generator for Dual UMI Data sets</title></head>
+<!-- <body bgcolor="#8ace00" background="IMG-20240803-WA0000.jpg" style="background-size: 10em; background-blend-mode: soft-light;"> -->
+<body bgcolor="#8ace00" background="https://static.thenounproject.com/png/749086-200.png" style="background-blend-mode: soft-light;">
+
+<h1>Test Data Generator for Dual UMI Data sets</h1><img width="100" src="IMG-20240803-WA0000.jpg">
+<hr>
+<form action="javascript:process();">
+number of reads: <input id="noOfReads" type="text" size="10" value="100"/><br/>
+read id start value: <input id="readIDStartValue" type="text" size="10" value="0"/><br/>
+reads per bucket: <input id="readsPerBucket" type="text" size="10" value="10"/><br/>
+size range for random reads:
+<input id="randomReadMinLength" type="text" size="5" value="800"/>
+<input id="randomReadMaxLength" type="text" size="5" value="1200"/>
+<br/>
+
+<!-- random, or H8, or C12, or 2F5 -->
+reads to be included: 
+random<input type="checkbox" id="includeRandomRead" checked>
+H8<input type="checkbox" id="includeH8Read" checked>
+C12<input type="checkbox" id="includeC12Read" checked>
+2F5<input type="checkbox" id="include2F5Read" checked>
+<br/>
+
+% error rate:
+min: <input id="errorRateMin" type="text" size="4" value="0"/>
+max: <input id="errorRateMax" type="text" size="4" value="0"/><br/>
+
+<!--
+read quality score range:
+min: <input id="qualityScoreMin" type="text" size="4" value="73"/>
+max: <input id="qualityScoreMax" type="text" size="4" value="73"/><br/>
+-->
+
+<input type="submit" value="Process">
+
+<br/>
+<textarea id="output" cols="100" rows="20">
+</textarea>
+
+</form>
+
+<script>
+function clear() {
+    textarea = document.getElementById("output");
+    textarea.textContent = "";
+}
+function outputLine(line) {
+    textarea = document.getElementById("output");
+    textarea.append(line + "\n");
+}
+
+// +ve strand:  CS1_UMIF_F00phgback_READ_R00phgbackRC_UMIRRC_CS2RC
+// -ve strand:  CS2_UMIR_R00phgback_READRC_F00phgbackRC_UMIFRC_CS1RC
+
+SEQ_CS1 = 'ACACTGACGACATGGTTCTACA';
+SEQ_CS2 = 'TACGGTAGCAGAGACTTGGTCT';
+SEQ_CS1_RC = 'TGTAGAACCATGTCGTCAGTGT';
+SEQ_CS2_RC = 'AGACCAAGTCTCTGCTACCGTA';
+READ_CONSENSUS_F = 'GGTCTGCTGTTACTGGCGGC'
+READ_CONSENSUS_F_RC = 'GCCGCCAGTAACAGCAGACC'
+READ_CONSENSUS_R = 'ATGGTGATGATGATGTGCGG'
+READ_CONSENSUS_R_RC = 'CCGCACATCATCATCACCAT';
+
+UMIF_starting_value = 'TTTAAAAATTAAAAATTAAAAATTT';
+UMIRRC_starting_value = 'AAAGGGGGAAGGGGGAAGGGGGAAA';
+
+// tests
+//outputLine(generateUMIF());
+//outputLine(generateUMIRRC());
+
+function generateUMIF() {
+    var ret = "";
+    var letters = "GCA";
+    var rand5_0 = "";
+    var rand5_1 = "";
+    var rand5_2 = "";
+
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+
+    return "TTT" + rand5_0 + "TT" + rand5_1 + "TT" + rand5_2 + "TTT";
+}
+
+function generateUMIRRC() {
+    var ret = "";
+    var letters = "TGC";
+    var rand5_0 = "";
+    var rand5_1 = "";
+    var rand5_2 = "";
+
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+    rand5_0 += letters[Math.floor(Math.random() * 3)];
+
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+    rand5_1 += letters[Math.floor(Math.random() * 3)];
+
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+    rand5_2 += letters[Math.floor(Math.random() * 3)];
+
+    return "AAA" + rand5_0 + "AA" + rand5_1 + "AA" + rand5_2 + "AAA";
+}
+
+// https://stackoverflow.com/a/33341547
+function complement(a) {
+    return { A: 'T', T: 'A', G: 'C', C: 'G' }[a];
+}    
+
+// https://stackoverflow.com/a/33341547
+function reverseComplement(sequence) {
+    return sequence.split('').reverse().map(complement).join('');
+}
+
+function buildPositiveStrand(umif, umirrc, read) {
+    return SEQ_CS1 + umif + READ_CONSENSUS_F + read + READ_CONSENSUS_R_RC + umirrc + SEQ_CS2_RC;
+}
+
+function buildNegativeStrand(umif, umirrc, read) {
+    var umir = reverseComplement(umirrc);
+    var umifrc = reverseComplement(umif);
+    var read_RC = reverseComplement(read);
+    return SEQ_CS2 + umir + READ_CONSENSUS_R + read_RC + READ_CONSENSUS_F_RC + umifrc + SEQ_CS1_RC;
+}
+
+//example = buildPositiveStrand(UMIF_starting_value, UMIRRC_starting_value, "GGGGGGGGGG");
+
+// QUAL value is ASCI_BASE=33
+// K is the highest at Q=42 P_error is 0.00006
+function generateQualFromRead(read) {
+    var ret = "";
+    for(var i=0;i<read.length;i++) {
+        ret += "K";
+    }
+    return ret;
+}
+
+function introduceErrors(sequence, errorRateMin, errorRateMax) {
+    // the process to mutate is as follows
+    // 1. randomly choose, where all values are equally likely, an offset into the seq
+    // 2. likewise, randomly choose which of the following mutations to perform:
+    // 2.1 deletion of upto 5 letters
+    // 2.2 insertion of upto 5 letters
+    // 2.3 modify single letter to a different value
+    // repeat the above mutation process n number of times
+
+    var errorRate = errorRateMin + Math.floor(Math.random() * (errorRateMax - errorRateMin));
+    var numOfErrors = Math.floor(sequence.length * (errorRate / 100.0));
+//    console.info("number of errors " + numOfErrors);
+//    console.info("before " + sequence);
+    for(var l=0; l<numOfErrors; l++) {
+        var offsetToModify = Math.floor(Math.random() * sequence.length);
+        var choice = Math.floor(Math.random() * 3);
+        if (choice == 0) {
+            var numToDelete = Math.floor(Math.random() * 5) + 1;
+            sequence = sequence.substring(0, offsetToModify) + sequence.substring(offsetToModify + numToDelete)
+        } else if (choice == 1) {
+            var numToInsert = Math.floor(Math.random() * 5) + 1;
+            var randomInsertion = "";
+            for(var k=0; k<numToInsert; k++) {
+                randomInsertion += ["A","T","G","C"][Math.floor(Math.random() * 4)];
+            }
+            sequence = sequence.substring(0, offsetToModify) + randomInsertion + sequence.substring(offsetToModify);
+        } else if (choice == 2) {
+            var originalLetter = sequence[offsetToModify];
+            var newLetter = originalLetter;
+            while (newLetter == originalLetter) {
+                newLetter = ["A","T","G","C"][Math.floor(Math.random() * 4)];
+            }
+            sequence[offsetToModify] = newLetter;
+        } 
+    }
+//    console.info("after  " + sequence);
+    return sequence;
+}
+
+function process() {
+    clear();
+
+    var noOfReads = Number(document.getElementById("noOfReads").value);
+    var readsPerBucket = Number(document.getElementById("readsPerBucket").value);
+
+    var randomReadMinLength = Number(document.getElementById("randomReadMinLength").value);
+    var randomReadMaxLength = Number(document.getElementById("randomReadMaxLength").value);
+
+    var errorRateMin = Number(document.getElementById("errorRateMin").value);
+    var errorRateMax = Number(document.getElementById("errorRateMax").value);
+
+    var umif = "";
+    var umirrc = "";
+
+    // trimmed sequences
+    var readRandom = "random";
+    var readH8 = "GGTCTGCTGTTACTGGCGGCCCAGCCGGCCATGGCCCAGGTGCAGCTGTTGGAGTCTGGAGCAGAGGTGAAAAAGCCCGGGGAGTCTCTGAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTACCAGCTACTGGATCGGCTGGGTGCGCCAGATGCCCGGGAAAGGCCTGGAGTGGATGGGGATCATCTATCCTGGTGACTCTGATACCAGATACAGCCCGGCCTTCCAAGGCCAGGTCACCATCTCAGCCGACAAGTCCATCAGCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACGGGGGATTTTTGGAGTGGAAAATCTTGATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAGGTGGAGGCGGTTCAGGCGGAGGTGGCTCTGGCGGTGGCGCTGGCCAGTCTGCCCTGACTCAGCCTCGCTCAGTGTCCGGGTCTCCTGGACAGTCAGTCACCATCTCCTGCACTGGAACCAGCAGTGATGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAGCACCCAGGCAAAGCCCCCAAACTCATGATTTATGATGTCAGTAAGCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGCTCCAAGTCTGGCAGCACGGCCTCCCTGACAATCTCTGGGCTCCAGGCTGAGGACGAGGCTGAATATTACTGCAGCTCATATACAACCAGCGGCACTTATGTCTTCGGAACTGGGACCAAGCTGACCGTCCTAGGTGCGGCCGCACATCATCATCACCAT";
+    var readC12 = "GGTCTGCTGTTACTGGCGGCCCAGCCGGCCATGGCCCAGGTCCAGCTGGTACAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAGGCTTTCCTGCAAGACTTCTGGATACAACTTCACTAGTTATGCTATGCATTGGGTGCGCCGGGCCCCCGGACAAAGGCTTGAATGGATGGGATGGATCAACGCTGGCAATGGTAAGACAGAATATTCACCGGGGTTTCAGGGCAGAGTCACCATTACCACAGACACATCCGCGAGCACAGGCTTCATGGAACTGAGCAGCCTGAGATCTGAAGACACGGCTATGTATTACTGTGCGAGAGATGGCTTGGGTGGTCGCGCCTTCAACGGAATGGACGTCTGGGGCCACGGCACCCTGGTCACCGTCTCCTCAGGTGGAGGCGGTTCAGGCGGAGGTGGCTCTGGCGGTGGCGCTAGCTCCTATGAGCTGACACAGCCACCCTCGGTGTCAGTGTCCCCAGGACAGACGGCCAGGATCACCTGCTCTGGAGATGCATTGCCAAAGCAATATGCTTATTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTGATATATAAAGACAGTGAGAGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAGCTCAGGGACAACAGTCACGTTGACCATCAGTGGAGTCCAGGCAGAAGACGAGGCTGACTATTACTGTCAATCAGCAGACAGCAGTGGTACTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAGGTGCGGCCGCACATCATCATCACCAT";
+    var read2F5 = "GGTCTGCTGTTACTGGCGGCCCAGCCGGCCATGGCCGAGGTTCGCCTGCAACAGCCTGGGACTGAACTGGTGAAGCCTGGGGCTTCAGTGAAGCTGTCCTGCAAGACTTCTGGCTACACCTTCACCAGGTACTGGATGCACTGGGTGAGGCAGAGGCCTGGACAAGGCCTTGAGTGGATTGGAAATATTCTTCCTTACGATGGTGGTACTAACTACAATGAGAGGTTCAAGAACAAGGCCACACTGACTGTAGACAGATCCTCCAGCACAGCCTACATGCAGCTCAGCAGCCTGACATCTGAGGACTCTGCGGTCTATTATTGTGCCCCCTACTATAGTGGGGACTTTGACTCCTGGGGCCAAGGCACCACTCTCACAGTCTCCTCGGGTGGTGGTGGTTCTGGCGGCGGCGGCTCCGGTGGAGGTGGATCCGATGTCCAGATGACACAGACTACATCCTCCCTGTCTGCCTCTCTGGGAGACAGAGTCACCATCAGTTGCAGGGCAAGTCAGGACATTAGCAATTATTTAAACTGGTATCAGCAGAAACCAGATGGAACTGTTAAACTCCTGATCTACTACACATCAAGATTACACTCAGGAATCCCATCAAGGTTCAGTGGCAGTGGGTCTGGAACAGATTATTCTCTCACCATTAGCAACCTGGAGCAAGAAGATGTTGCCACTTACTTTTGCCAACAGGGTAATACGCTTCCGTGGACGTTCGGTGGAGGCACCAAGCTGGAAATGAAACGCGCGGCCGCACATCATCATCACCAT";
+
+    var readTypes = [];
+
+    if (includeRandomRead.checked) {
+        readTypes.push(readRandom);
+    }
+    if (includeH8Read.checked) {
+        readTypes.push(readH8);
+    }
+    if (includeC12Read.checked) {
+        readTypes.push(readC12);
+    }
+    if (include2F5Read.checked) {
+        readTypes.push(read2F5);
+    }    
+
+    
+    var readIDStartValue = Number(document.getElementById("readIDStartValue").value);
+
+    for(var i=readIDStartValue; i<noOfReads+readIDStartValue; i++) {
+        if (i % readsPerBucket == 0) {
+            umif = generateUMIF();
+            umirrc = generateUMIRRC();
+        }
+
+        var readToUse = readTypes[Math.floor(Math.random() * readTypes.length)];
+        if (readToUse == "random") {
+            // between randomReadMinLength and randomReadMaxLength
+            // between 0 and (randomReadMaxLength - randomReadMinLength)
+            var randomOffset = Math.floor(Math.random() * (randomReadMaxLength - randomReadMinLength));
+            var randomLength = randomReadMinLength + randomOffset;
+            readToUse = "";
+            for(var j=0; j<randomLength; j++) {
+                readToUse += ["A","T","G","C"][Math.floor(Math.random() * 4)];
+            }
+        }
+
+        var read = "";  
+        if (i % 2 == 0) {
+            read = buildPositiveStrand(umif, umirrc, readToUse);
+        }
+        else {
+            read = buildNegativeStrand(umif, umirrc, readToUse);
+        }
+
+        read = introduceErrors(read, errorRateMin, errorRateMax);
+
+        var qual = generateQualFromRead(read);
+        outputFastqLine("read" + i, read, qual);
+    }
+}
+
+function outputFastqLine(id, seq, qual) {
+    outputLine("@" + id);
+    outputLine(seq);
+    outputLine("+");
+    outputLine(qual);
+}
+
+
+</script>
+
+</body>
+</html>
