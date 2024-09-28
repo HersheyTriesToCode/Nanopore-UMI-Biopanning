@@ -18,6 +18,7 @@ from Bio import pairwise2
 parser = argparse.ArgumentParser(description='UMI BinTable Enricher')
 parser.add_argument('-o', '--outputdir', type=str, required=True, help='Output directory for UMI binned fastq files')
 parser.add_argument('-b', '--bindir', type=str, required=True, help='Binning directory of UMI fastq files')
+parser.add_argument('-da', action='store_true', required=False, help='Disable Alignment')
 args = parser.parse_args()
 
 BINTABLE_FILENAME = "bin_table.csv"
@@ -75,7 +76,10 @@ with open(BINTABLE_PATH, newline='') as input_csvfile:
                     sys.stderr.write("Error: the bintable file had the wrong number of fields, expected 3 got " + str(len(row)))
                     sys.exit(1)
                 else:
-                    field = ["UMI", "Num of reads", "% read consensus mismatch", "consensus sequence", "consensus amino acid", "H8 match score", "C12 match score", "2F5 match score"]
+                    if args.da == False:
+                        field = ["UMI", "Num of reads", "% read consensus mismatch", "consensus sequence", "consensus amino acid", "H8 match score", "C12 match score", "2F5 match score"]
+                    else:
+                        field = ["UMI", "Num of reads", "% read consensus mismatch", "consensus sequence", "consensus amino acid"]
                     writer.writerow(field)
             else:
                 print(row) # debug
@@ -124,20 +128,24 @@ with open(BINTABLE_PATH, newline='') as input_csvfile:
 
                 if len(consensus_seq) > 0:
                     consensus_aa = Seq(str(consensus_seq)).translate()
-                
-                    alignments = pairwise2.align.globalms(consensus_seq, SEQ_H8, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-                    if len(alignments) > 0:
-                        seq_H8_match = alignments[0].score / max(len(consensus_seq), len(SEQ_H8))
 
-                    alignments = pairwise2.align.globalms(consensus_seq, SEQ_C12, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-                    if len(alignments) > 0:
-                        seq_C12_match = alignments[0].score / max(len(consensus_seq), len(SEQ_C12))
+                    if args.da == False:
+                        alignments = pairwise2.align.globalms(consensus_seq, SEQ_H8, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+                        if len(alignments) > 0:
+                            seq_H8_match = alignments[0].score / max(len(consensus_seq), len(SEQ_H8))
 
-                    alignments = pairwise2.align.globalms(consensus_seq, SEQ_2F5, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-                    if len(alignments) > 0:
-                        seq_2F5_match = alignments[0].score / max(len(consensus_seq), len(SEQ_2F5))
+                        alignments = pairwise2.align.globalms(consensus_seq, SEQ_C12, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+                        if len(alignments) > 0:
+                            seq_C12_match = alignments[0].score / max(len(consensus_seq), len(SEQ_C12))
 
-                    writer.writerow([umi, numOfReads, percentReadConsensusMismatch, consensus_seq, consensus_aa, seq_H8_match, seq_C12_match, seq_2F5_match])
+                        alignments = pairwise2.align.globalms(consensus_seq, SEQ_2F5, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+                        if len(alignments) > 0:
+                            seq_2F5_match = alignments[0].score / max(len(consensus_seq), len(SEQ_2F5))
+
+                        writer.writerow([umi, numOfReads, percentReadConsensusMismatch, consensus_seq, consensus_aa, seq_H8_match, seq_C12_match, seq_2F5_match])
+                    else:
+                        writer.writerow([umi, numOfReads, percentReadConsensusMismatch, consensus_seq, consensus_aa])
+
 
             # debug - only process 3 rows from the input csv file
             #if i > 1000:

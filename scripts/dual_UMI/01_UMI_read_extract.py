@@ -40,10 +40,12 @@ SEQ_CS1 = 'ACACTGACGACATGGTTCTACA' #ACACTgacgacatggttctaca
 SEQ_CS2 = 'TACGGTAGCAGAGACTTGGTCT'
 SEQ_CS1_RC = str(Seq(SEQ_CS1).reverse_complement()) #TGTAGAACCATGTCGTCAGTGT
 SEQ_CS2_RC = str(Seq(SEQ_CS2).reverse_complement()) #AGACCAAGTCTCTGCTACCGTA
-READ_CONSENSUS_F = 'GGTCTGCTGTTACTGGCGGC'
+
+
+# these are now passed in as args so we can override them
+#READ_CONSENSUS_F = 'GGTCTGCTGTTACTGGCGGC'
 #     F00phgback = 'GGTCTGCTGTTACTGGCGGC'
-READ_CONSENSUS_R = 'ATGGTGATGATGATGTGCGG'
-READ_CONSENSUS_R_RC = str(Seq(READ_CONSENSUS_R).reverse_complement())
+#READ_CONSENSUS_R = 'ATGGTGATGATGATGTGCGG'
 #     R00phgback = 'ATGGTGATGATGATGTGCGG'
 
 # try this later
@@ -79,7 +81,14 @@ parser.add_argument('-t', '--table', type=str, required=True, help='Table of UMI
 parser.add_argument('-acs', '--alignmentscore', type=float, required=True, help='Alignment score in percentage (ranges from 1 to 99.0) for finding CS1, CS2')
 parser.add_argument('-aum', '--alignmentscoreumi', type=float, required=True, help='Alignment score in percentage (ranges from 1 to 99.0) for finding read consensus')
 parser.add_argument('-l', '--limit', type=int, default=0, required=False, help='Optional record limit - number of records to be processed')
+parser.add_argument('-bbfs', '--backbone-forward', type=str, required=True, help='Backbone forward sequence')
+parser.add_argument('-bbrs', '--backbone-reverse', type=str, required=True, help='Backbone reverse sequence')
 args = parser.parse_args()
+
+READ_CONSENSUS_F = args.backbone_forward
+READ_CONSENSUS_R = args.backbone_reverse
+READ_CONSENSUS_R_RC = str(Seq(READ_CONSENSUS_R).reverse_complement())
+
 
 # newer aligner - but doesn't provide first match offset unlike the older pw2 aligner
 # def create_aligner():

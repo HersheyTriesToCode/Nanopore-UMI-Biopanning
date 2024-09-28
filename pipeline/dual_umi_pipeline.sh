@@ -16,6 +16,25 @@ INPUT_FASTQ="../scripts/dual_UMI/input/dual_umi_test/input_double_entry.fastq"
 OUT_DIR="../scripts/dual_UMI/output/dual_umi_test"
 BIN_OUT_DIR=$OUT_DIR/binning
 
+# filter length and quality values
+# default qual_score <= 22.5
+# for phage library use 820 to 950
+# for aptamer library 45 use 162 to 202
+FILTER_QUAL_THRESHOLD="-q 22.5"
+FILTER_LENGTH_MIN="-lmin 820"
+FILTER_LENGTH_MAX="-lmax 950"
+
+# read extract
+READ_CONSENSUS_F="-bbfs GGTCTGCTGTTACTGGCGGC" # F00phgback
+READ_CONSENSUS_R="-bbrs ATGGTGATGATGATGTGCGG" # R00phgback
+#READ_CONSENSUS_F="-bbfs GGAGGCTCTCGGGACGAC" #represents library 45 primer 1
+#READ_CONSENSUS_R="-bbrs CTGTAAATCCTAAAGGCGGGACGAC" #represents library 45 primer 2
+
+# bintable enricher
+DISABLE_ALIGNMENT=""
+#DISABLE_ALIGNMENT="-da" # uncomment to disable
+
+
 # the higher the stricter the matching / rejection
 # -acs Alignment score in percentage (ranges from 1 to 99.0) for finding CS1, CS2
 # -aum Alignment score in percentage (ranges from 1 to 99.0) for finding read consensus
@@ -81,6 +100,9 @@ case $stage_number in
             -i $INPUT_FASTQ \
             -o $OUT_DIR/filtered.fastq \
             -g $OUT_DIR/filtered.svg \
+            $FILTER_QUAL_THRESHOLD \
+            $FILTER_LENGTH_MIN \
+            $FILTER_LENGTH_MAX \
             2>&1 \
             > $OUT_DIR/qual_len_filter.log
 
@@ -100,6 +122,8 @@ case $stage_number in
             -t $OUT_DIR/bin_table.csv \
             $DESIRED_SPICE \
             -l 0 \
+            $READ_CONSENSUS_F \
+            $READ_CONSENSUS_R \
             2>&1 \
             > $OUT_DIR/UMI_read_extract.log
         ;;
@@ -182,6 +206,7 @@ case $stage_number in
         python $SCRIPT_DIR/03_UMI_bintable_enricher.py \
             -o $OUT_DIR \
             -b $BIN_OUT_DIR \
+            $DISABLE_ALIGNMENT \
             2>&1 \
             > $OUT_DIR/UMI_bintable_enricher.log
         ;;

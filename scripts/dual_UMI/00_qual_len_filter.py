@@ -31,6 +31,9 @@ parser = argparse.ArgumentParser(description='Length and Quality Filter')
 parser.add_argument('-i', '--input', type=str, required=True, help='Input fastq file')
 parser.add_argument('-o', '--output', type=str, required=True, help='Output fastq filtered file')
 parser.add_argument('-g', '--graph', type=str, required=True, help='Output svg graph file')
+parser.add_argument('-lmin', '--length-min', type=int, required=True, help='Filter length min')
+parser.add_argument('-lmax', '--length-max', type=int, required=True, help='Filter length max')
+parser.add_argument('-q', '--quality-threshold', type=float, required=True, help='Filter quality threshold')
 parser.add_argument('-d', action='store_true', required=False, help='Display Graph')
 args = parser.parse_args()
 
@@ -98,12 +101,12 @@ with open(input_filename, "r") as file:
 
             # reject based on quality first
             # then later reject based on length
-            if qual_score <= 22.5:
+            if qual_score <= args.quality_threshold:
                 qual_filtered_count += 1
                 is_record_filtered = True
             else:
                 record_length = len(record.seq)
-                if record_length >= 820 and record_length <= 950:
+                if record_length >=args.length_min and record_length <= args.length_max: 
                     retained_quality_scores.append(qual_score)
                     retained_read_lengths.append(record_length)
                 else:
@@ -129,10 +132,6 @@ with open(input_filename, "r") as file:
             record_lines = []
 
 output_file.close()
-
-# Your existing code continues...
-
-# ... (The rest of your existing code)
 
 if total_bases > 0:
     print("overall_qual = %.2f" % (total_quality / total_bases))
