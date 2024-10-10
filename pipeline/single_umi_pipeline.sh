@@ -8,7 +8,7 @@
 # our scripts are in blah/users/hershey/src/Nanopore-UMI-Biopanning/scripts
 # so the relative path from our directory to scripts is therefore ../src/Nanopore-UMI-Biopanning/scripts
 
-SCRIPT_DIR="../src/Nanopore-UMI-Biopanning/scripts"
+SCRIPT_DIR="../src/Nanopore-UMI-Biopanning/scripts/single_UMI"
 
 # modified script (includes Read Consensus Flag in Dict)
 
