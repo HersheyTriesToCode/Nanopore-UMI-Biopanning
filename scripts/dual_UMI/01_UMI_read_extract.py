@@ -217,7 +217,7 @@ def cluster_umi_keys(dict, output_folder):
         meshclust_filename2 = output_folder + "_umis_clustered"
 
         ret = subprocess.run([meshclust, "-d", meshclust_filename1,
-                         "-o", meshclust_filename2, "-t", "0.90"], capture_output=True)
+                         "-o", meshclust_filename2, "-t", "0.95"], capture_output=True) #was 0.90 earlier 
         
         if len(ret.stderr) > 0:
             print("meshclust failed")
