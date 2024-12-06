@@ -19,15 +19,19 @@ def match_umi1(umi):
 # AAABBBBBAABBBBBAABBBBBAAA
 # 3, 5,   2,5,   2,5,   3
 # B = G, C, T
-def match_umi2(umi):
-    pattern = re.compile(r'^[A]{3}[GCT]{5}[A]{2}[GCT]{5}[A]{2}[GCT]{5}[A]{3}$')
-    return bool(pattern.match(umi))
+# def match_umi2(umi):
+#     pattern = re.compile(r'^[A]{3}[GCT]{5}[A]{2}[GCT]{5}[A]{2}[GCT]{5}[A]{3}$')
+#     return bool(pattern.match(umi))
 
-#binning_folder = "Unique_Molecular_Identifier/binning_output_3"
+#e.g.
+#args.bindir = "Unique_Molecular_Identifier/binning_output_3"
 
 list_of_files = glob.glob(args.bindir + r'/*.fastq')
 #print(list_of_files)
 #print(len(list_of_files))
+
+if len(list_of_files) == 0:
+    print("error: no fastq files found in ", args.bindir)
 
 rejected_count = 0
 total_files_examined = 0
@@ -48,9 +52,9 @@ for filename in list_of_files:
             print(f"UMI '{umi1}' does not match.")
             rejected_count += 1
 
-        if not match_umi2(umi2):
-            print(f"UMI '{umi2}' does not match.")
-            rejected_count += 1
+        # if not match_umi2(umi2):
+        #     print(f"UMI '{umi2}' does not match.")
+        #     rejected_count += 1
 
     else:
         total_files_examined -= 1
@@ -59,7 +63,8 @@ for filename in list_of_files:
 total = total_files_examined * 2
 print("total UMIs examined ", total)
 print("rejected ", rejected_count)
-print("percentage matched ", 100.0 * (total - rejected_count) / total)
+if total > 0:
+    print("percentage matched ", 100.0 * (total - rejected_count) / total)
 
 
 

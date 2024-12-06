@@ -35,18 +35,16 @@ import csv
 import os.path
 import subprocess
 
+# for umi extraction
+import re
+
+import difflib
+
 # global constants
-SEQ_CS1 = 'ACACTGACGACATGGTTCTACA' #ACACTgacgacatggttctaca
+SEQ_CS1 = 'ACACTGACGACATGGTTCTACA'
 SEQ_CS2 = 'TACGGTAGCAGAGACTTGGTCT'
 SEQ_CS1_RC = str(Seq(SEQ_CS1).reverse_complement()) #TGTAGAACCATGTCGTCAGTGT
 SEQ_CS2_RC = str(Seq(SEQ_CS2).reverse_complement()) #AGACCAAGTCTCTGCTACCGTA
-
-
-# these are now passed in as args so we can override them
-#READ_CONSENSUS_F = 'GGTCTGCTGTTACTGGCGGC'
-#     F00phgback = 'GGTCTGCTGTTACTGGCGGC'
-#READ_CONSENSUS_R = 'ATGGTGATGATGATGTGCGG'
-#     R00phgback = 'ATGGTGATGATGATGTGCGG'
 
 # try this later
 # https://community.nanoporetech.com/downloads
@@ -59,16 +57,13 @@ SEQ_CS2_RC = str(Seq(SEQ_CS2).reverse_complement()) #AGACCAAGTCTCTGCTACCGTA
 #                                             )
 #                                       )
 
-# TODO: potentially another args??
 UMI_LEN = 25
-CS_LEN = 22
-MATCH_WINDOW = 100
 
-# scores for pairwise2 matching (from porechop: 3,-6,-5,-2)
-PAIRWISE2_MATCH = 1
-PAIRWISE2_MISMATCH = -1
-PAIRWISE2_GAP_OPEN = -0.5
-PAIRWISE2_GAP_EXTENSION = -0.1
+# scores for pairwise2 matching
+PAIRWISE2_MATCH = 3
+PAIRWISE2_MISMATCH = -6
+PAIRWISE2_GAP_OPEN = -5
+PAIRWISE2_GAP_EXTENSION = -2
 
 parser = argparse.ArgumentParser(description='Read UMI Extractor')
 parser.add_argument('-i', '--input', type=str, required=True, help='Input fastq file')
@@ -89,42 +84,71 @@ READ_CONSENSUS_F = args.backbone_forward
 READ_CONSENSUS_R = args.backbone_reverse
 READ_CONSENSUS_R_RC = str(Seq(READ_CONSENSUS_R).reverse_complement())
 
-
-# newer aligner - but doesn't provide first match offset unlike the older pw2 aligner
-# def create_aligner():
-#     aligner = Align.PairwiseAligner()
-#     aligner.mode = 'global'
-#     aligner.match_score = 1
-#     aligner.open_gap_score = -0.5
-#     aligner.extend_gap_score = -0.1
-#     aligner.substitution_matrix = GUPPY_MISMATCH_MATRIX
-#     return aligner
-
-def is_cs2_at_the_beginning(seq):
-    alignments = pairwise2.align.localms(SEQ_CS2, seq, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-    # alignments = create_aligner().align(SEQ_CS2, seq)
+# returns -1 if there is no match
+# otherwise returns the start and end position of the match
+def match(searchseq, seq, percent, debug=False):
+    retval = [-1,-1]
+    alignments = pairwise2.align.localms(searchseq, seq, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
     if len(alignments) > 0:
-        if alignments[0].score / len(SEQ_CS2) > args.alignmentscore:
-            return (alignments[0].start < MATCH_WINDOW)
-    return False
-
-def beginning_match(cs_type, seq, percent):
-    retval = -1
-    alignments = pairwise2.align.localms(cs_type, seq, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-    # alignments = create_aligner().align(cs_type, seq) #grab minimap/guppy ont penalties and use them here ... can be derived through probabilities of diff errors
-    if len(alignments) > 0:
-        if alignments[0].score / len(cs_type) > percent: #
-            retval = alignments[0].end    #see if first alignment is optimal or not... choose the alignment that has the lowest start value... alignments should be a list... use python sort to get lowest a.start
+        if debug:
+            print("searchseq: " + searchseq)
+            for i, alignment in enumerate(alignments):
+                print(str(i) + " score: " + str(alignment.score) + " start:" + str(alignment.start) + " end:" + str(alignment.end) + " length: " + str(alignment.end-alignment.start))
+                print(alignment)
+        if alignments[0].score / len(searchseq) > percent:
+            retval = [alignments[0].start,alignments[0].end]
     return retval
 
-def end_match(cs_type, seq, percent):
-    retval = -1
-    alignments = pairwise2.align.localms(cs_type, seq, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-    # alignments = create_aligner().align(cs_type, seq)
-    if len(alignments) > 0:
-        if alignments[0].score / len(cs_type) > percent:
-            retval = alignments[0].start    #see if first alignment is optimal or not
-    return retval
+def fuzzy_search(needle, haystack):
+    position = -1
+    highest_index = -1
+    highest_score = -1
+    needle_length = len(needle)
+
+    if needle_length <= len(haystack):
+        for i in range(len(haystack)-needle_length):
+            current_window = haystack[i:needle_length+i]
+            sm = difflib.SequenceMatcher(None, needle, current_window)
+            score = sm.ratio()
+            if score > highest_score:
+                highest_score = score
+                highest_index = i
+
+                # debug
+                # print()
+                # listOfOffsetsSubSeqLabels = []
+                # listOfOffsetsSubSeqLabels.append((i, needle, "needle with score " + str(score)))
+                # renderOffsetListCascade(haystack, listOfOffsetsSubSeqLabels)
+                # print()
+
+    if highest_score >= 0.95:
+        position = highest_index
+
+    return position
+
+def found_cs2(seq):
+    # this alignment match appears to produce large amounts of false positives
+    # given the current parameters for the pairwise alignment 
+    #return match(SEQ_CS2, seq, args.alignmentscore) != [-1,-1]
+
+    cs2_string = str(SEQ_CS2)
+    seq_string = str(seq)
+
+    # exact string match
+    #return seq_string.find(cs2_string) > -1
+
+    # fuzzy match
+    return fuzzy_search(cs2_string, seq_string) > -1
+
+# seq is the seq which has offset from
+# list is a list of [(offset, subseq, label),...]
+# assumes the offsets are monotonicly increasing
+def renderOffsetListCascade(seq, list):
+    print(seq)
+    for _, item in enumerate(list):
+        (offset,subseq,label)=item
+        print(' '*offset + subseq)
+        print(' '*offset + label)
 
 def append_to_dict(dict, key, value):
     if key not in dict.keys():
@@ -185,23 +209,33 @@ def cluster_umi_keys(dict, output_folder):
         meshclust_filename1 = output_folder + "_umis.fa"
         f = open(meshclust_filename1, 'w')
         for k, _ in dict.items():
-            if len(k) == UMI_LEN*2 + 1:
-                f.write(">" + k + "\n")
-                # remove the _ in the middle
-                f.write(k[0:UMI_LEN]+k[UMI_LEN+1:len(k)] + "\n")
+            f.write(">" + k + "\n")
+            # remove the _ in the middle
+            f.write(k.replace('_','') + "\n")
         f.close()
 
         meshclust_filename2 = output_folder + "_umis_clustered"
 
-        # assume success
-        subprocess.call([meshclust, "-d", meshclust_filename1,
-                         "-o", meshclust_filename2, "-t", "0.80"])
-
+        ret = subprocess.run([meshclust, "-d", meshclust_filename1,
+                         "-o", meshclust_filename2, "-t", "0.90"], capture_output=True)
+        
+        if len(ret.stderr) > 0:
+            print("meshclust failed")
+            print("error: ", ret.stderr)
+            # ignore meshclust failure
+            return dict
+        
+        if not os.path.isfile(meshclust_filename2):
+            print("meshclust failed")
+            print("error: output file not created ", meshclust_filename2)
+            # ignore meshclust failure
+            return dict
 
         # file format is here
         # https://github.com/HersheyTriesToCode/Identity/blob/master/README.md
 
         # collect a list of all the cluster centers
+        print("cluster_umi_keys first pass - collect cluster centers")
         cluster_centers_dict = {}
         with open(meshclust_filename2) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter='\t')
@@ -217,8 +251,11 @@ def cluster_umi_keys(dict, output_folder):
                         umi_center_key = row[1][1:len(row[1])]                        
                         append_to_dict(cluster_centers_dict, cluster_id, umi_center_key)
 
+        print("number of cluster centers ", len(cluster_centers_dict))
+
         # for each cluster center, we use the cluster identifier to know what cluster we are in
         # and we collapse the key mentioned as M to the same bin as C
+        print("cluster_umi_keys second pass - merge bins")
         with open(meshclust_filename2) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter='\t')
             for row in csv_reader:
@@ -229,6 +266,7 @@ def cluster_umi_keys(dict, output_folder):
                         umi_key_to_merge = row[1][1:len(row[1])]
                         values = dict[umi_key_to_merge]
                         del dict[umi_key_to_merge]
+                        print("center ", umi_center_key, " <- merging with key ", umi_key_to_merge)
                         for value in values:
                             append_to_dict(dict, umi_center_key, value)
 
@@ -240,107 +278,151 @@ def cluster_umi_keys(dict, output_folder):
 
 # initialize variables
 umi_dict = {}
-records_successfully_processed = 0
 read_consensus_match = 0 
-cs2_beginning = 0
+number_of_reversed_reads = 0
+number_of_records = 0
 
-for index, record in enumerate(SeqIO.parse(args.input, "fastq")):
+umi_search_pattern = '.*(TTT[AGC]{3,7}TT[AGC]{3,7}TT[AGC]{3,7}TTT).*'
+
+# create head and tail subsequences to use alignment to find offset into the sequence
+UMI_EG = "TTTAAAAATTAAAAATTAAAAATTT"
+head = SEQ_CS1 + UMI_EG + READ_CONSENSUS_F
+tail = READ_CONSENSUS_R_RC + UMI_EG + SEQ_CS2_RC
+
+for _, record in enumerate(SeqIO.parse(args.input, "fastq")):
+
+    number_of_records += 1
 
     if args.limit != 0:
-        if records_successfully_processed >= args.limit:
+        if number_of_records >= args.limit:
             break
 
-    if records_successfully_processed % 10000 == 0:
-        print("records successfully processed", records_successfully_processed)
+    if number_of_records % 10000 == 0:
+        print("records processed", number_of_records)
  
     id = record.id
     seq = record.seq
     seq_len = len(seq)
 
-    is_reversed = False
+    is_reverse_complement = False
 
-    # check if cs2 is at the beginning, if it is then reverse complement the seq
-    # feed it to the cs1 matching section
-    if is_cs2_at_the_beginning(seq):
-        cs2_beginning += 1
-        #print("cs2 found at the beginning - rc it")
+    # if we have a cs2 then we know the seq needs to be reverse complemented to be the forward version
+    if found_cs2(seq):
+        number_of_reversed_reads += 1
         seq = seq.reverse_complement()
-        is_reversed = True
+        is_reverse_complement = True
 
-    offset = beginning_match(SEQ_CS1, seq, args.alignmentscore)
-    if offset > -1 and offset < MATCH_WINDOW:
-        # UMI = offset ... offset + len(UMI)
-        # READ = offset + len(UMI) ... len(seq)-1-len(CS)? (but we will end up with junk in READ sometimes)
-        # to improve READ we need to do a pairwise on cs2rc
+    print(seq)
+    print(len(seq))
+    
+    listOfOffsetsSubSeqLabels = []
+    
+    start_of_read = -1
+    end_of_read = -1
+    read = ""
+    
+    umi = ""
+    umif = ""
+    umir = ""
 
-        umi = ""
-        umif = str(seq)[offset:offset+UMI_LEN]
-        umir = ""
+    haveHead = False
+    haveTail = False
+    haveUmif = False
+    haveUmir = False
+    haveRead = False
+    
+    positions = match(head, seq, args.alignmentscore)   
+    if positions != [-1,-1]:
+        extracted_head = str(seq[positions[0]:positions[1]])
+        haveHead = True
+        listOfOffsetsSubSeqLabels.append((positions[0], extracted_head, "head"))
+        start_of_read = positions[1]
+        
+        # regex find umif in extracted_head
+        match_result = re.search(umi_search_pattern, extracted_head)
+        if match_result:
+            umif = match_result.group(1)
+            haveUmif = True
+            listOfOffsetsSubSeqLabels.append((positions[0]+extracted_head.find(umif), umif, "umif"))
+        
+    positions = match(tail, seq, args.alignmentscore)   
+    if positions != [-1,-1]:
+        extracted_tail = str(seq[positions[0]:positions[1]])
+        haveTail = True
+        listOfOffsetsSubSeqLabels.append((positions[0], extracted_tail, "tail"))
+        
+        if haveHead:
+            end_of_read = positions[0]
+            read = seq[start_of_read:end_of_read]
+            haveRead = True
+            listOfOffsetsSubSeqLabels.append((start_of_read, read, "read"))
 
-        # this is just an approximation - we can ignore this
-        #read = str(seq)[offset+UMI_LEN:seq_len-1-CS_LEN]
+        # regex find umir in extracted_tail
+        match_result = re.search(umi_search_pattern, extracted_tail)
+        if match_result:
+            umir = match_result.group(1)
+            haveUmir = True
+            listOfOffsetsSubSeqLabels.append((positions[0]+extracted_tail.find(umir), umir, "umir"))
 
-        # look at the end of the seq - 50 bp
-        end_offset = end_match(SEQ_CS2_RC, str(seq)[seq_len-1-MATCH_WINDOW:seq_len-1], args.alignmentscore)
+    if haveUmif and haveUmir:
+        umi = umif + "_" + umir
+    
+    # troubleshoot the subseqs
+    renderOffsetListCascade(seq, listOfOffsetsSubSeqLabels)
 
-        read_end = -1
-        # our window is 50 and 28 is perfect (50-28==22)
-        # i.e. 28 == (MATCH_WINDOW-CS_LEN)
-        # therefore +-5
-        if end_offset > (MATCH_WINDOW-CS_LEN)-5 and end_offset < (MATCH_WINDOW-CS_LEN)+5:
-            read_end = seq_len - (MATCH_WINDOW - end_offset) - 1
+    if haveRead and haveUmif and haveUmir:
+        print("complete record found")
+    
+        # rc_flag = False
+        
+        # alignments = pairwise2.align.localms(READ_CONSENSUS_F, read[0:len(READ_CONSENSUS_F)], PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+        # #print("*** rcf", alignments[0].score / len(READ_CONSENSUS_F) * 100.0)
+        # #print(pairwise2.format_alignment(*alignments[0]))
 
-            # read extraction
-            read = str(seq)[offset+UMI_LEN:read_end-UMI_LEN]
-            
-            umir = str(seq)[read_end-UMI_LEN:read_end]
-            umi = umif + '_' + umir
+        # if alignments[0].score / len(READ_CONSENSUS_F) > args.alignmentscoreumi:
+        #     alignments = pairwise2.align.localms(READ_CONSENSUS_R_RC, read[len(read)-len(READ_CONSENSUS_R_RC):len(read)], PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+        #     #print("*** rcr", alignments[0].score / len(READ_CONSENSUS_R_RC) * 100.0)
+        #     #print(pairwise2.format_alignment(*alignments[0]))
 
-            rc_flag = False
-           
-            alignments = pairwise2.align.localms(READ_CONSENSUS_F, read[0:len(READ_CONSENSUS_F)], PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-            #print("*** rcf", alignments[0].score / len(READ_CONSENSUS_F) * 100.0)
-            #print(pairwise2.format_alignment(*alignments[0]))
+        #     if alignments[0].score / len(READ_CONSENSUS_R_RC) > args.alignmentscoreumi:
+        #         read_consensus_match += 1
+        #         rc_flag = True
+        rc_flag = True # disable rc check for now
 
-            if alignments[0].score / len(READ_CONSENSUS_F) > args.alignmentscoreumi:
-                alignments = pairwise2.align.localms(READ_CONSENSUS_R_RC, read[len(read)-len(READ_CONSENSUS_R_RC):len(read)], PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-                #print("*** rcr", alignments[0].score / len(READ_CONSENSUS_R_RC) * 100.0)
-                #print(pairwise2.format_alignment(*alignments[0]))
+        # follow the same conventions as dorado fastq format
+        # https://github.com/nanoporetech/dorado/blob/c3a2952356e2506ef1de73b0c9e14784ab9a974a/dorado/utils/fastq_reader.h#L20C68-L20C80
+        qual_lookup_ascii = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+        qual_string = ""
+        qualities = record.letter_annotations["phred_quality"]
 
-                if alignments[0].score / len(READ_CONSENSUS_R_RC) > args.alignmentscoreumi:
-                    read_consensus_match += 1
-                    rc_flag = True
+        for qual in qualities:
+            qual_string += qual_lookup_ascii[qual]
 
-            qual_lookup_ascii = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
-            qual_string = ""
-            qualities = record.letter_annotations["phred_quality"]
-            for qual in qualities:
-                qual_string += qual_lookup_ascii[qual]
+        # we need to modify the qual_string to match
+        # how we extracted read from seq
+        # that is, reverse if required
+        # and use offset
+        if is_reverse_complement:
+            qual_string = qual_string[::-1]
 
-            # we need to modify the qual_string to match
-            # how we extracted read from seq
-            # that is, reverse if required
-            # and use offset
-            if is_reversed:
-                qual_string = qual_string[::-1]
+        # chop the qual string using the same parameters as the read extraction
+        qual_string = qual_string[start_of_read:end_of_read]
 
-            # chop the qual string using the same parameters as the read extraction
-            qual_string = qual_string[offset+UMI_LEN:read_end-UMI_LEN]
-
-            append_to_dict(umi_dict, umi, [id, read, qual_string, rc_flag])
-            records_successfully_processed += 1
+        append_to_dict(umi_dict, umi, [id, read, qual_string, rc_flag])
 
 
 # do a mesh cluster on the umi_dict keys and collapse the keys that are clustered
+# comment out this line to disable umi key clustering
 umi_dict = cluster_umi_keys(umi_dict, args.outputdir)
 
 output_dict_as_fastq(umi_dict, args.outputdir)
 #print_dict(umi_dict)
 
 # TODO: what about stats for when reject reads due to the alignment score being under the threshold
-if records_successfully_processed>0:
-    print("read consensus match % ", read_consensus_match/records_successfully_processed * 100)
-    print("reads that were RCed % : ", cs2_beginning/records_successfully_processed*100)
+if number_of_records>0:
+    print("number of records ", number_of_records)
+    #disabled print("read consensus match % ", read_consensus_match/number_of_records * 100.0)
+    print("reads that were RCed % : ", number_of_reversed_reads/number_of_records * 100.0)
 
 max_k = ""
 max_v = 0

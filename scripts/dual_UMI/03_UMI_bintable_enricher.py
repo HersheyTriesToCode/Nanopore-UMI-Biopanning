@@ -23,11 +23,13 @@ args = parser.parse_args()
 
 BINTABLE_FILENAME = "bin_table.csv"
 NEW_BINTABLE_FILENAME = "bin_table_enriched.csv"
+BINTABLE_FASTA_FILENAME = "bin_table_enriched.fasta"
 SPOA_FILENAME = "bin_table_spoa.csv"
 OUTPUT_DIR = args.outputdir
 BIN_OUTPUT_DIR = args.bindir
 BINTABLE_PATH = OUTPUT_DIR + "/" + BINTABLE_FILENAME
 NEW_BINTABLE_PATH = OUTPUT_DIR + "/" + NEW_BINTABLE_FILENAME
+BINTABLE_FASTA_PATH = OUTPUT_DIR + "/" + BINTABLE_FASTA_FILENAME
 SPOA_TABLE_PATH = OUTPUT_DIR + "/" + SPOA_FILENAME
 
 # these are trimmed sequeneces
@@ -67,89 +69,95 @@ with open(BINTABLE_PATH, newline='') as input_csvfile:
     with open(NEW_BINTABLE_PATH, 'w', newline='') as output_csvfile:
         writer = csv.writer(output_csvfile)
 
-        reader = csv.reader(input_csvfile)
-        i = 0
-        for row in reader:
-            if i == 0:
-                # expecting row is the header row
-                if not len(row) == 3:
-                    sys.stderr.write("Error: the bintable file had the wrong number of fields, expected 3 got " + str(len(row)))
-                    sys.exit(1)
-                else:
-                    if args.da == False:
-                        field = ["UMI", "Num of reads", "% read consensus mismatch", "consensus sequence", "consensus amino acid", "H8 match score", "C12 match score", "2F5 match score"]
-                    else:
-                        field = ["UMI", "Num of reads", "% read consensus mismatch", "consensus sequence", "consensus amino acid"]
-                    writer.writerow(field)
-            else:
-                print(row) # debug
+        with open(BINTABLE_FASTA_PATH, 'w', newline='') as output_fasta:
 
-                umi = row[0]
-                numOfReads = row[1]
-                percentReadConsensusMismatch = row[2]
-                consensus_seq = ""
-                consensus_aa = ""
-                seq_H8_match = 0.0
-                seq_C12_match = 0.0
-                seq_2F5_match = 0.0
-               
-                # if we have the spoa table in memory
-                # then use it in preference
-                if umi in spoa_dict:
-                    consensus_seq = spoa_dict[umi]
-                else:
-                    # failback to running a medaka file
-                    # we want to read the consensus seq if it exists
-                    # binning/umi*_[UMI]/consensus_reference_0.fasta
-                    consensus_reference_files = glob.glob(BIN_OUTPUT_DIR + "/" + r'umi*_' + umi + "/consensus_reference_0.fasta")
-                    if len(consensus_reference_files) == 0:
-                        # if we have no matches then we did not run a consensus program
-                        x = BIN_OUTPUT_DIR + "/" + r'umi*_' + umi + ".fastq"
-                        UMIs_with_one_read = glob.glob(x)
-                        if len(UMIs_with_one_read) == 1:
-                            for record in SeqIO.parse(UMIs_with_one_read[0], "fastq"):
-                                consensus_seq = record.seq 
-                                break
-
-                        elif len(UMIs_with_one_read) == 0:
-                            print("read probably discarded")
-                            # file doesn't exist so... we don't have any seq to read
-                            consensus_seq = ""
-                        else:
-                            sys.stderr.write("Error: UMI fastq file has more than one copy" + str(len(UMIs_with_one_read)))
-                            sys.exit(1)
-                    elif len(consensus_reference_files) == 1:
-                        for record in SeqIO.parse(consensus_reference_files[0], "fasta"):
-                            consensus_seq = record.seq
-                            break
-                    else:
-                        sys.stderr.write("Error: umi binning dir returned more than 1 result, ", consensus_reference_files)
+            reader = csv.reader(input_csvfile)
+            i = 0
+            for row in reader:
+                if i == 0:
+                    # expecting row is the header row
+                    if not len(row) == 3:
+                        sys.stderr.write("Error: the bintable file had the wrong number of fields, expected 3 got " + str(len(row)))
                         sys.exit(1)
-
-                if len(consensus_seq) > 0:
-                    consensus_aa = Seq(str(consensus_seq)).translate()
-
-                    if args.da == False:
-                        alignments = pairwise2.align.globalms(consensus_seq, SEQ_H8, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-                        if len(alignments) > 0:
-                            seq_H8_match = alignments[0].score / max(len(consensus_seq), len(SEQ_H8))
-
-                        alignments = pairwise2.align.globalms(consensus_seq, SEQ_C12, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-                        if len(alignments) > 0:
-                            seq_C12_match = alignments[0].score / max(len(consensus_seq), len(SEQ_C12))
-
-                        alignments = pairwise2.align.globalms(consensus_seq, SEQ_2F5, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
-                        if len(alignments) > 0:
-                            seq_2F5_match = alignments[0].score / max(len(consensus_seq), len(SEQ_2F5))
-
-                        writer.writerow([umi, numOfReads, percentReadConsensusMismatch, consensus_seq, consensus_aa, seq_H8_match, seq_C12_match, seq_2F5_match])
                     else:
-                        writer.writerow([umi, numOfReads, percentReadConsensusMismatch, consensus_seq, consensus_aa])
+                        if args.da == False:
+                            field = ["UMI", "Num of reads", "% read consensus mismatch", "consensus sequence", "consensus amino acid", "H8 match score", "C12 match score", "2F5 match score"]
+                        else:
+                            field = ["UMI", "Num of reads", "% read consensus mismatch", "consensus sequence", "consensus amino acid"]
+                        writer.writerow(field)
+                else:
+                    print(row) # debug
+
+                    umi = row[0]
+                    numOfReads = row[1]
+                    percentReadConsensusMismatch = row[2]
+                    consensus_seq = ""
+                    consensus_aa = ""
+                    seq_H8_match = 0.0
+                    seq_C12_match = 0.0
+                    seq_2F5_match = 0.0
+                
+                    # if we have the spoa table in memory
+                    # then use it in preference
+                    if umi in spoa_dict:
+                        consensus_seq = spoa_dict[umi]
+                    else:
+                        # failback to running a medaka file
+                        # we want to read the consensus seq if it exists
+                        # binning/umi*_[UMI]/consensus_reference_0.fasta
+                        consensus_reference_files = glob.glob(BIN_OUTPUT_DIR + "/" + r'umi*_' + umi + "/consensus_reference_0.fasta")
+                        if len(consensus_reference_files) == 0:
+                            # if we have no matches then we did not run a consensus program
+                            x = BIN_OUTPUT_DIR + "/" + r'umi*_' + umi + ".fastq"
+                            UMIs_with_one_read = glob.glob(x)
+                            if len(UMIs_with_one_read) == 1:
+                                for record in SeqIO.parse(UMIs_with_one_read[0], "fastq"):
+                                    consensus_seq = record.seq 
+                                    break
+
+                            elif len(UMIs_with_one_read) == 0:
+                                print("read probably discarded")
+                                # file doesn't exist so... we don't have any seq to read
+                                consensus_seq = ""
+                            else:
+                                sys.stderr.write("Error: UMI fastq file has more than one copy" + str(len(UMIs_with_one_read)))
+                                sys.exit(1)
+                        elif len(consensus_reference_files) == 1:
+                            for record in SeqIO.parse(consensus_reference_files[0], "fasta"):
+                                consensus_seq = record.seq
+                                break
+                        else:
+                            sys.stderr.write("Error: umi binning dir returned more than 1 result, ", consensus_reference_files)
+                            sys.exit(1)
+
+                    if len(consensus_seq) > 0:
+                        consensus_aa = Seq(str(consensus_seq)).translate()
+
+                        if args.da == False:
+                            alignments = pairwise2.align.globalms(consensus_seq, SEQ_H8, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+                            if len(alignments) > 0:
+                                seq_H8_match = alignments[0].score / max(len(consensus_seq), len(SEQ_H8))
+
+                            alignments = pairwise2.align.globalms(consensus_seq, SEQ_C12, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+                            if len(alignments) > 0:
+                                seq_C12_match = alignments[0].score / max(len(consensus_seq), len(SEQ_C12))
+
+                            alignments = pairwise2.align.globalms(consensus_seq, SEQ_2F5, PAIRWISE2_MATCH, PAIRWISE2_MISMATCH, PAIRWISE2_GAP_OPEN, PAIRWISE2_GAP_EXTENSION)
+                            if len(alignments) > 0:
+                                seq_2F5_match = alignments[0].score / max(len(consensus_seq), len(SEQ_2F5))
+
+                            writer.writerow([umi, numOfReads, percentReadConsensusMismatch, consensus_seq, consensus_aa, seq_H8_match, seq_C12_match, seq_2F5_match])
+                        else:
+                            writer.writerow([umi, numOfReads, percentReadConsensusMismatch, consensus_seq, consensus_aa])
+
+                        output_fasta.write(">" + umi + "\n")
+                        output_fasta.write(str(consensus_seq) + "\n")
 
 
-            # debug - only process 3 rows from the input csv file
-            #if i > 1000:
-                #break
-            i += 1
+
+                # debug - only process 3 rows from the input csv file
+                #if i > 1000:
+                    #break
+                i += 1
 
             
